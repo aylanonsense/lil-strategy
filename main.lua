@@ -14,44 +14,57 @@ local units
 local unitsImage
 local backgroundImage
 
--- Sound effects
--- ...
-
 -- Initializes the game
 function love.load()
-  -- Initialize game vars
-  -- ...
-
   -- Load images
   unitsImage = love.graphics.newImage('img/units.png')
   unitsImage:setFilter('nearest', 'nearest')
   backgroundImage = love.graphics.newImage('img/bg.png')
   backgroundImage:setFilter('nearest', 'nearest')
 
-  -- Load sound effects
-  -- ...
-
   -- Create the game objects
   units = {}
-  createUnit('carrot', 50, 50)
-  createUnit('beet', 80, 50)
+  for i = 1, 20 do
+    local typeIndex = math.random(1, 3)
+    createUnit(({ 'carrot', 'beet', 'turnip'})[typeIndex], math.random(30, GAME_WIDTH - 30), math.random(30, GAME_HEIGHT - 60))
+  end
 end
 
 -- Updates the game state
 function love.update(dt)
-  -- Units move towards the target they were given
+  -- Units move towards clicked point
   for _, unit in ipairs(units) do
     if unit.targetX and unit.targetY then
+      unit.timeToLoseTarget = unit.timeToLoseTarget - dt
       local dx = unit.targetX - unit.x
       local dy = unit.targetY - unit.y
       local dist = math.sqrt(dx * dx + dy * dy)
       local movement = unit.speed * dt
-      if dist < movement then
+      if dist < movement or unit.timeToLoseTarget <= 0.0 then
         unit.targetX = nil
         unit.targetY = nil
+        unit.timeToLoseTarget = 0.0
       else
         unit.x = unit.x + movement * dx / dist
         unit.y = unit.y + movement * dy / dist
+      end
+    end
+  end
+
+  -- Prevent the units from overlapping
+  for i = 1, #units do
+    local unit1 = units[i]
+    for j = i + 1, #units do
+      local unit2 = units[j]
+      local dx = unit2.x - unit1.x
+      local dy = unit2.y - unit1.y
+      local dist = math.sqrt(dx * dx + dy * dy)
+      if dist < 10 then
+        local movement = (10 - dist) / 2
+        unit1.x = unit1.x - movement * dx / dist
+        unit1.y = unit1.y - movement * dy / dist
+        unit2.x = unit2.x + movement * dx / dist
+        unit2.y = unit2.y + movement * dy / dist
       end
     end
   end
@@ -81,17 +94,31 @@ function love.draw()
     love.graphics.rectangle('line', mousePressX, mousePressY, mouseX - mousePressX, mouseY - mousePressY)
   end
 
-  -- Draw all of the units
+  -- Draw the unit shadows
   love.graphics.setColor(1, 1, 1, 1)
+  for _, unit in ipairs(units) do
+    drawImage(unitsImage, 2, 15, 37, unit.x - 7.5, unit.y - 33.5)
+  end
+
+  -- Draw the selection circles
+  for _, unit in ipairs(units) do
+    if unit.isSelected then
+      drawImage(unitsImage, 1, 15, 37, unit.x - 7.5, unit.y - 33.5)
+    end
+  end
+
+  -- Draw the units
   for _, unit in ipairs(units) do
     local spriteNum
     if unit.type == 'carrot' then
-      spriteNum = 2
+      spriteNum = 3
     elseif unit.type == 'beet' then
-      spriteNum = 4
+      spriteNum = 5
+    elseif unit.type == 'turnip' then
+      spriteNum = 7
     end
-    if unit.isSelected then
-      drawImage(unitsImage, 1, 15, 37, unit.x - 7.5, unit.y - 33.5)
+    if unit.timeToLoseTarget and unit.timeToLoseTarget % 0.4 > 0.2 then
+      spriteNum = spriteNum + 1
     end
     drawImage(unitsImage, spriteNum, 15, 37, unit.x - 7.5, unit.y - 33.5)
   end
@@ -112,6 +139,10 @@ function love.mousereleased(x, y, button)
       if unit.isSelected then
         unit.targetX = mouseReleaseX
         unit.targetY = mouseReleaseY
+        local dx = unit.targetX - unit.x
+        local dy = unit.targetY - unit.y
+        local dist = math.sqrt(dx * dx + dy * dy)
+        unit.timeToLoseTarget = 1.2 * dist / unit.speed
       end
     end
   elseif button == 1 and mousePressX and mousePressY then
@@ -136,7 +167,8 @@ function createUnit(type, x, y)
     y = y,
     targetX = nil,
     targetY = nil,
-    speed = 50,
+    timeToLoseTarget = 0.0,
+    speed = (type == 'carrot' and 20 or 60),
     isSelected = false
   })
 end
