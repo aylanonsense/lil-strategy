@@ -1,2 +1,2 @@
 # lil-strategy
-A little real-time strategy game.
+A lil real-time strategy game.

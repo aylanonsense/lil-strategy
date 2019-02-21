@@ -24,9 +24,9 @@ function love.load()
 
   -- Create the game objects
   units = {}
-  for i = 1, 20 do
+  for i = 1, 30 do
     local typeIndex = math.random(1, 3)
-    createUnit(({ 'carrot', 'beet', 'turnip'})[typeIndex], math.random(30, GAME_WIDTH - 30), math.random(30, GAME_HEIGHT - 60))
+    createUnit(({ 'carrot', 'beet', 'turnip'})[typeIndex], math.random(15, GAME_WIDTH - 15), math.random(30, GAME_HEIGHT - 15))
   end
 end
 
@@ -68,6 +68,11 @@ function love.update(dt)
       end
     end
   end
+
+  -- Sort the list of units for renering
+  table.sort(units, function(a, b)
+    return a.y < b.y
+  end)
 end
 
 -- Renders the game
