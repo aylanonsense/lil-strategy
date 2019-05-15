@@ -1,32 +1,37 @@
--- Constants
+-- Game constants
 local GAME_WIDTH = 200
 local GAME_HEIGHT = 200
-local RENDER_SCALE = 3
 
 -- Game vars
 local mousePressX
 local mousePressY
-
--- Game objects
 local units
 
--- Images
+-- Assets
 local unitsImage
 local backgroundImage
 
 -- Initializes the game
 function love.load()
-  -- Load images
+  -- Load assets
+  love.graphics.setDefaultFilter('nearest', 'nearest')
   unitsImage = love.graphics.newImage('img/units.png')
-  unitsImage:setFilter('nearest', 'nearest')
   backgroundImage = love.graphics.newImage('img/bg.png')
-  backgroundImage:setFilter('nearest', 'nearest')
 
-  -- Create the game objects
+  -- Create the units
   units = {}
   for i = 1, 30 do
-    local typeIndex = math.random(1, 3)
-    createUnit(({ 'carrot', 'beet', 'turnip'})[typeIndex], math.random(15, GAME_WIDTH - 15), math.random(30, GAME_HEIGHT - 15))
+    local unitType = ({ 'carrot', 'beet', 'turnip'})[math.random(1, 3)]
+    table.insert(units, {
+      type = unitType,
+      x = math.random(15, GAME_WIDTH - 15),
+      y = math.random(30, GAME_HEIGHT - 15),
+      targetX = nil,
+      targetY = nil,
+      timeToLoseTarget = 0.0,
+      speed = (unitType == 'carrot' and 20 or 60),
+      isSelected = false
+    })
   end
 end
 
@@ -69,7 +74,7 @@ function love.update(dt)
     end
   end
 
-  -- Sort the list of units for renering
+  -- Sort the list of units for rendering
   table.sort(units, function(a, b)
     return a.y < b.y
   end)
@@ -77,12 +82,8 @@ end
 
 -- Renders the game
 function love.draw()
-  -- Set some drawing filters
-  love.graphics.setDefaultFilter('nearest', 'nearest')
-  love.graphics.scale(RENDER_SCALE, RENDER_SCALE)
-
   -- Draw the background pattern
-  love.graphics.setColor(1, 1, 1, 1)
+  love.graphics.setColor(1, 1, 1)
   local backgroundWidth = backgroundImage:getWidth()
   local backgroundHeight = backgroundImage:getHeight()
   for x = 1, GAME_WIDTH, backgroundWidth do
@@ -92,23 +93,23 @@ function love.draw()
   end
 
   -- Draw the selection rectangle
-  love.graphics.setColor(117 / 255, 206 / 255, 18 / 255, 1)
+  love.graphics.setColor(88 / 255, 203 / 255, 45 / 255)
   if mousePressX and mousePressY then
-    local mouseX = love.mouse.getX() / RENDER_SCALE
-    local mouseY = love.mouse.getY() / RENDER_SCALE
+    local mouseX = love.mouse.getX()
+    local mouseY = love.mouse.getY()
     love.graphics.rectangle('line', mousePressX, mousePressY, mouseX - mousePressX, mouseY - mousePressY)
   end
 
   -- Draw the unit shadows
-  love.graphics.setColor(1, 1, 1, 1)
+  love.graphics.setColor(1, 1, 1)
   for _, unit in ipairs(units) do
-    drawImage(unitsImage, 2, 15, 37, unit.x - 7.5, unit.y - 33.5)
+    drawSprite(unitsImage, 15, 37, 2, unit.x - 7.5, unit.y - 33.5)
   end
 
   -- Draw the selection circles
   for _, unit in ipairs(units) do
     if unit.isSelected then
-      drawImage(unitsImage, 1, 15, 37, unit.x - 7.5, unit.y - 33.5)
+      drawSprite(unitsImage, 15, 37, 1, unit.x - 7.5, unit.y - 33.5)
     end
   end
 
@@ -125,57 +126,37 @@ function love.draw()
     if unit.timeToLoseTarget and unit.timeToLoseTarget % 0.4 > 0.2 then
       spriteNum = spriteNum + 1
     end
-    drawImage(unitsImage, spriteNum, 15, 37, unit.x - 7.5, unit.y - 33.5)
+    drawSprite(unitsImage, 15, 37, spriteNum, unit.x - 7.5, unit.y - 33.5)
   end
 end
 
 -- Click a unit to select it, or drag a rectangle
 function love.mousepressed(x, y, button)
   if button == 1 then
-    mousePressX = x / RENDER_SCALE
-    mousePressY = y / RENDER_SCALE
+    mousePressX, mousePressY = x, y
   end
 end
+
 function love.mousereleased(x, y, button)
-  local mouseReleaseX = x / RENDER_SCALE
-  local mouseReleaseY = y / RENDER_SCALE
   if button == 2 then
     for _, unit in ipairs(units) do
       if unit.isSelected then
-        unit.targetX = mouseReleaseX
-        unit.targetY = mouseReleaseY
-        local dx = unit.targetX - unit.x
-        local dy = unit.targetY - unit.y
+        unit.targetX, unit.targetY = x, y
+        local dx, dy = unit.targetX - unit.x, unit.targetY - unit.y
         local dist = math.sqrt(dx * dx + dy * dy)
         unit.timeToLoseTarget = 1.2 * dist / unit.speed
       end
     end
   elseif button == 1 and mousePressX and mousePressY then
-    local dx = mouseReleaseX - mousePressX
-    local dy = mouseReleaseY - mousePressY
+    local dx, dy = x - mousePressX, y - mousePressY
     deselectAllUnits()
     if math.abs(dx) < 5 and math.abs(dy) < 5 then
-      selectUnit(mouseReleaseX, mouseReleaseY)
+      selectUnit(x, y)
     else
-      selectUnits(math.min(mousePressX, mouseReleaseX), math.min(mousePressY, mouseReleaseY), math.abs(dx), math.abs(dy))
+      selectUnits(math.min(mousePressX, x), math.min(mousePressY, y), math.abs(dx), math.abs(dy))
     end
-    mousePressX = nil
-    mousePressY = nil
+    mousePressX, mousePressY = nil, nil
   end
-end
-
--- Creates a new unit
-function createUnit(type, x, y)
-  table.insert(units, {
-    type = type,
-    x = x,
-    y = y,
-    targetX = nil,
-    targetY = nil,
-    timeToLoseTarget = 0.0,
-    speed = (type == 'carrot' and 20 or 60),
-    isSelected = false
-  })
 end
 
 -- Deselects all units
@@ -204,11 +185,15 @@ function selectUnits(x, y, width, height)
   end
 end
 
--- Draws a sprite from an image, spriteNum=1 is the upper-leftmost sprite
-function drawImage(image, spriteNum, spriteWidth, spriteHeight, x, y)
-  local columns = math.floor(image:getWidth() / spriteWidth)
-  local col = (spriteNum - 1) % columns
-  local row = math.floor((spriteNum - 1) / columns)
-  local quad = love.graphics.newQuad(col * spriteWidth, row * spriteHeight, spriteWidth, spriteHeight, image:getDimensions())
-  love.graphics.draw(image, quad, x, y)
+-- Draws a sprite from a sprite sheet, spriteNum=1 is the upper-leftmost sprite
+function drawSprite(spriteSheetImage, spriteWidth, spriteHeight, sprite, x, y, flipHorizontal, flipVertical, rotation)
+  local width, height = spriteSheetImage:getDimensions()
+  local numColumns = math.floor(width / spriteWidth)
+  local col, row = (sprite - 1) % numColumns, math.floor((sprite - 1) / numColumns)
+  love.graphics.draw(spriteSheetImage,
+    love.graphics.newQuad(spriteWidth * col, spriteHeight * row, spriteWidth, spriteHeight, width, height),
+    x + spriteWidth / 2, y + spriteHeight / 2,
+    rotation or 0,
+    flipHorizontal and -1 or 1, flipVertical and -1 or 1,
+    spriteWidth / 2, spriteHeight / 2)
 end

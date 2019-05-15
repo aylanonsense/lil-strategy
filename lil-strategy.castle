@@ -2,6 +2,8 @@
 main: main.lua
 name: lil strategy
 username: bridgs
-primaryColor: C0C0C0
+primaryColor: FBBDB6
 coverImage: cover-image.png
 description: A lil real-time strategy game, featuring vegetables. Just as you'd expect.
+dimensions: 192x192
+scaling: step
